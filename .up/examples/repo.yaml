@@ -1,0 +1,14 @@
+apiVersion: integration.upbound.io/v1alpha1
+kind: Repo
+metadata:
+  name: provider-xyz
+  namespace: default
+spec:
+  parameters:
+    marketplace:
+      organization: upboundengineering
+      repo: provider-xyz
+    github:
+      repo: provider-xyz
+  writeConnectionSecretToRef:
+    name: provider-xyz-token

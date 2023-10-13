@@ -1,0 +1,144 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xrepos.integration.upbound.io
+spec:
+  writeConnectionSecretsToNamespace: upbound-system
+  compositeTypeRef:
+    apiVersion: integration.upbound.io/v1alpha1
+    kind: XRepo
+  resources:
+    - name: upboundRepo
+      base:
+        apiVersion: repository.upbound.io/v1alpha1
+        kind: Repository
+      patches:
+        - fromFieldPath: spec.parameters.marketplace.organization
+          toFieldPath: spec.forProvider.organizationName
+        - fromFieldPath: spec.parameters.marketplace.repo
+          toFieldPath: spec.forProvider.name
+
+    - name: upboundRepoPermission
+      base:
+        apiVersion: repository.upbound.io/v1alpha1
+        kind: Permission
+        spec:
+          forProvider:
+            permission: write
+            teamIdSelector:
+              matchControllerRef: true
+            repositorySelector:
+              matchControllerRef: true
+      patches:
+        - fromFieldPath: spec.parameters.marketplace.organization
+          toFieldPath: spec.forProvider.organizationName
+
+    - name: upboundTeam
+      base:
+        apiVersion: iam.upbound.io/v1alpha1
+        kind: Team
+      patches:
+        - fromFieldPath: spec.parameters.marketplace.organization
+          toFieldPath: spec.forProvider.organizationName
+        - fromFieldPath: spec.parameters.marketplace.repo
+          toFieldPath: spec.forProvider.name
+
+    - name: upboundRobot
+      base:
+        apiVersion: iam.upbound.io/v1alpha1
+        kind: Robot
+      patches:
+        - fromFieldPath: spec.parameters.marketplace.organization
+          toFieldPath: spec.forProvider.owner.name
+        - fromFieldPath: spec.parameters.marketplace.repo
+          toFieldPath: spec.forProvider.name
+        - fromFieldPath: spec.parameters.marketplace.repo
+          toFieldPath: spec.forProvider.description
+
+    - name: upboundRobotTeamMembership
+      base:
+        apiVersion: iam.upbound.io/v1alpha1
+        kind: RobotTeamMembership
+        spec:
+          forProvider:
+            robotIdSelector:
+              matchControllerRef: true
+            teamIdSelector:
+              matchControllerRef: true
+
+    - name: upboundPushToken
+      base:
+        apiVersion: iam.upbound.io/v1alpha1
+        kind: Token
+        spec:
+          forProvider:
+            owner:
+              type: robots
+              idSelector:
+                matchControllerRef: true
+      patches:
+        - fromFieldPath: spec.parameters.marketplace.repo
+          toFieldPath: spec.forProvider.name
+        - fromFieldPath: spec.writeConnectionSecretToRef.namespace
+          toFieldPath: spec.writeConnectionSecretToRef.namespace
+        - fromFieldPath: metadata.uid
+          toFieldPath: spec.writeConnectionSecretToRef.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-token"
+      connectionDetails:
+        - fromConnectionSecretKey: token
+        - fromConnectionSecretKey: id
+
+    - name: githubRepo
+      base:
+        apiVersion: repo.github.upbound.io/v1alpha1
+        kind: Repository
+        # ToDo(haarchri): configuration for ManagementPolicies when Repo pre-exists
+        spec:
+          forProvider:
+            visibility: public
+      patches:
+        - fromFieldPath: spec.parameters.marketplace.repo
+          toFieldPath: metadata.annotations[crossplane.io/external-name]
+
+    - name: githubActionSecretXPKGToken
+      base:
+        apiVersion: actions.github.upbound.io/v1alpha1
+        kind: ActionsSecret
+        spec:
+          forProvider:
+            plaintextValueSecretRef:
+              key: token
+              namespace: upbound-system
+            secretName: XPKG_TOKEN
+            repositorySelector: 
+              matchControllerRef: true
+      patches:
+        - fromFieldPath: metadata.uid
+          toFieldPath: spec.forProvider.plaintextValueSecretRef.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-token"
+
+    - name: githubActionSecretXPKGAccessID
+      base:
+        apiVersion: actions.github.upbound.io/v1alpha1
+        kind: ActionsSecret
+        spec:
+          forProvider:
+            plaintextValueSecretRef:
+              key: id
+              namespace: upbound-system
+            secretName: XPKG_ACCESS_ID
+            repositorySelector: 
+              matchControllerRef: true
+      patches:
+        - fromFieldPath: metadata.uid
+          toFieldPath: spec.forProvider.plaintextValueSecretRef.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-token"
