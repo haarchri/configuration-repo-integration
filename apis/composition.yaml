@@ -102,6 +102,8 @@ spec:
       patches:
         - fromFieldPath: spec.parameters.marketplace.repo
           toFieldPath: metadata.annotations[crossplane.io/external-name]
+        - fromFieldPath: spec.parameters.github.repo
+          toFieldPath: spec.forProvider.name
 
     - name: githubActionSecretXPKGToken
       base:
